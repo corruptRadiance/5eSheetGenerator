@@ -5,40 +5,7 @@
 #include <time.h>
 #include <math.h>
 
-/* DnD 5e Character Creator
-
-    GOALS:
-    ✓ Create structs for stats/bonuses
-    ✓ Create a struct to represent a sheet
-    ✓ Create function to return a randomly rolled stat
-    ✓ Fix incorrect stat bonus with negative stat levels
-    ✓ Store stats as named members of sheet
-    ✗ Store skills as named members of stats
-    ✓ Create function to populate skill bonuses
-
-    ✓ Create function to roll all stats
-    - Create meta structure for storing skills under one parent stat
-    - Fix UpdateAllSkills() check (can't check for NULL?)
-    - Create function to roll skill check
-    - Test SetSkillProficiency() w/ roll function
-
-    - Store each sheet as a file on the computer
-
-    NOTES:
-    Don't entirely recreate the sheet from the ground up,
-    focus on broad systems like stats and character motivations
-    (that are coincidentally easier to implement hehe)
-
-    Systems to recreate:
-    ✓ Character Info (including motivations)
-    ✓ Stats with Manual Rolls (Roll 3 or 4d6, drop the lowest)
-    - Skills w/ proficiency
-    - Saving throws w/ proficiency
-    - Hit Points/Dice
-    
-    Learn "proper" format to store files
-
-*/
+/* Structs */
 
 struct s_stat{
     int level;
@@ -50,13 +17,10 @@ struct s_skill{
     int bonus;
 };
 
-struct s_str_skills{
-    
-};
-
 struct s_sheet{
-    // Info
-    char name[32];
+    // Character Info
+    char playerName[32];
+    char characterName[32];
     char pronouns[32];
     char personality[256];
 
@@ -100,25 +64,63 @@ struct s_sheet{
     struct s_skill persuasion;
 };
 
-struct s_stat RollStat(int);
-struct s_skill SetSkillDefault(struct s_stat *);
-void SetSkillProficiency(struct s_skill *, bool);
+/* Functions */
+
+struct s_sheet *NewSheet();
+struct s_stat InitializeStat();
+struct s_stat RollForStat(int);
+struct s_skill NewSkill(struct s_stat *, bool);
+int RollSkillCheck(struct s_sheet *, struct s_skill);
+void SetSkillProficiency(struct s_skill, bool);
 void RollAllStats(struct s_sheet *, int);
 void UpdateAllSkills(struct s_sheet *);
+void DisplaySheetValues(struct s_sheet *);
+void PromptCharacterInfo(struct s_sheet *);
 
 int main(){
     srand(time(NULL));
-    struct s_sheet *p_sheet = (struct s_sheet *) malloc(sizeof(struct s_sheet));
+    struct s_sheet *p_sheet = NewSheet();
 
     RollAllStats(p_sheet, 4);
     UpdateAllSkills(p_sheet);
+    PromptCharacterInfo(p_sheet);
+
+    DisplaySheetValues(p_sheet);
 
     free(p_sheet);
     return 0;
 }
 
-// Returns a randomly rolled stat, given a quantity of dice
-struct s_stat RollStat(int diceCount){
+/* Function Declarations */
+
+struct s_sheet *NewSheet(){
+    // Allocate Memory
+    struct s_sheet *sheet = (struct s_sheet *) malloc(sizeof(struct s_sheet));
+
+    // Initialize Character Info
+    strncpy(sheet->playerName,    "", sizeof(sheet->playerName));
+    strncpy(sheet->characterName, "", sizeof(sheet->characterName));
+    strncpy(sheet->pronouns,      "", sizeof(sheet->pronouns));
+    strncpy(sheet->personality,   "", sizeof(sheet->personality));
+
+    // Initialize Stats
+    sheet->level = 1;
+    sheet->proficiency = 2;
+
+    struct s_stat *currentStat = &sheet->strength;
+    for (int i = 0; i < 6; i++){
+        *(currentStat + i) = InitializeStat();
+    }
+
+    return sheet;
+}
+
+struct s_stat InitializeStat(){
+    struct s_stat initializedStat = {-1, -1};
+    return initializedStat;
+}
+
+struct s_stat RollForStat(int diceCount){
 
     int results[diceCount];
     int swapCount;
@@ -155,24 +157,30 @@ struct s_stat RollStat(int diceCount){
     return rolled;
 }
 
-// Returns a skill with false proficiency and bonus derived from parent stat
-struct s_skill SetSkillDefault(struct s_stat *parent){
-    struct s_skill newSkill = {false, parent->bonus};
+struct s_skill NewSkill(struct s_stat *parent, bool proficiency){
+    struct s_skill newSkill = {proficiency, parent->bonus};
     return newSkill;
 }
 
-// Returns a skill with proficiency modded, given an existing skill
-void SetSkillProficiency(struct s_skill *inputSkill, bool condition){
-    inputSkill->proficient = condition;
+int RollSkillCheck(struct s_sheet *sheet, struct s_skill skill){
+    int result = (rand() % 20) + skill.bonus;
+
+    if (skill.proficient){
+        result += sheet->proficiency;
+    }
+
+    return result;
 }
 
-// Randomly rolls every stat on the sheet
+void SetSkillProficiency(struct s_skill input, bool condition){
+    input.proficient = condition;
+}
+
 void RollAllStats(struct s_sheet *sheet, int diceCount){
     struct s_stat *p_strength = &sheet->strength;
 
     for (int i = 0; i < 6; i++){
-        *(p_strength + i) = RollStat(diceCount);
-        printf("Level: %i | Bonus: %i\n", (p_strength + i)->level, (p_strength + i)->bonus);
+        *(p_strength + i) = RollForStat(diceCount);
     }    
 }
 
@@ -183,25 +191,23 @@ void UpdateAllSkills(struct s_sheet *sheet){
 
     // Empty Stat Check
     for (int i = 0; i < 6; i++){
-        if ((p_currentStat + i) == NULL){
-            printf("Error: Invalid stat detected.");
+        if ((p_currentStat + i)->level == -1){
+            printf("Error: Invalid stat detected.\n");
             return;
         }
     }
 
-    // For each category of skill, call SetSkillDefault()
+    // For each category of skill, call NewSkill()
 
     // Strength
-    *p_currentSkill = SetSkillDefault(p_currentStat);
-    printf("STR Skill Bonus: %i\n", p_currentSkill->bonus);
+    *p_currentSkill = NewSkill(p_currentStat, p_currentSkill->proficient);
 
     // Dexterity
     p_currentStat = &sheet->dexterity;
     p_currentSkill = &sheet->acrobatics;
 
     for (int i = 0; i < 3; i++){
-        *(p_currentSkill + i) = SetSkillDefault(p_currentStat);
-        printf("DEX Skill Bonus: %i\n", p_currentSkill->bonus);
+        *(p_currentSkill + i) = NewSkill(p_currentStat, p_currentSkill->proficient);
     }
 
     // Intelligence
@@ -209,8 +215,7 @@ void UpdateAllSkills(struct s_sheet *sheet){
     p_currentSkill = &sheet->arcana;
 
     for (int i = 0; i < 5; i++){
-        *(p_currentSkill + i) = SetSkillDefault(p_currentStat);
-        printf("INT Skill Bonus: %i\n", p_currentSkill->bonus);
+        *(p_currentSkill + i) = NewSkill(p_currentStat, p_currentSkill->proficient);
     }
 
     // Wisdom
@@ -218,8 +223,7 @@ void UpdateAllSkills(struct s_sheet *sheet){
     p_currentSkill = &sheet->animal;
 
     for (int i = 0; i < 5; i++){
-        *(p_currentSkill + i) = SetSkillDefault(p_currentStat);
-        printf("WIS Skill Bonus: %i\n", p_currentSkill->bonus);
+        *(p_currentSkill + i) = NewSkill(p_currentStat, p_currentSkill->proficient);
     }
 
     // Charisma
@@ -227,11 +231,47 @@ void UpdateAllSkills(struct s_sheet *sheet){
     p_currentSkill = &sheet->deception;
 
     for (int i = 0; i < 4; i++){
-        *(p_currentSkill + i) = SetSkillDefault(p_currentStat);
-        printf("CHA Skill Bonus: %i\n", p_currentSkill->bonus);
+        *(p_currentSkill + i) = NewSkill(p_currentStat, p_currentSkill->proficient);
     }
 }
 
+void DisplaySheetValues(struct s_sheet *sheet){
+    // Print Character Info
+    printf("== Character Info ==\n");
+    printf("%s, %s\n", sheet->characterName, sheet->pronouns);
+    printf("Played by: %s\n\n", sheet->playerName);
+    printf("%s\n", sheet->personality);
 
+    // Print Stats
+    printf("\n== Stats ==\n");
+    printf("Character Level: %i\n", sheet->level);
+    printf("| Strength     | Level: %i | Bonus: %i |\n", sheet->strength.level, sheet->strength.bonus);
+    printf("| Dexterity    | Level: %i | Bonus: %i |\n", sheet->dexterity.level, sheet->dexterity.bonus);
+    printf("| Constitution | Level: %i | Bonus: %i |\n", sheet->constitution.level, sheet->constitution.bonus);
+    printf("| Intelligence | Level: %i | Bonus: %i |\n", sheet->intelligence.level, sheet->intelligence.bonus);
+    printf("| Wisdom       | Level: %i | Bonus: %i |\n", sheet->wisdom.level, sheet->wisdom.bonus);
+    printf("| Charisma     | Level: %i | Bonus: %i |\n", sheet->charisma.level, sheet->charisma.bonus);
+}
 
+void PromptCharacterInfo(struct s_sheet *sheet){
+    // Store Player Name
+    printf("What is your player's name?\n>");
+    fgets(sheet->playerName, sizeof(sheet->playerName), stdin);
+    sheet->playerName[strcspn(sheet->playerName, "\n")] = 0;
+    
+    // Store Character Name
+    printf("What is your character's name?\n>");
+    fgets(sheet->characterName, sizeof(sheet->characterName), stdin);
+    sheet->characterName[strcspn(sheet->characterName, "\n")] = 0;
+    
+    // Store Pronouns
+    printf("What are your character's pronouns?\n>");
+    fgets(sheet->pronouns, sizeof(sheet->pronouns), stdin);
+    sheet->pronouns[strcspn(sheet->pronouns, "\n")] = 0;
+    
+    // Store Personality
+    printf("Give a brief summary of your character's personality [256 character limit]\n>");
+    fgets(sheet->personality, sizeof(sheet->personality), stdin);
+    sheet->personality[strcspn(sheet->personality, "\n")] = 0;
+}
 
