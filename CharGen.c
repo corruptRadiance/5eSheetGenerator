@@ -163,7 +163,7 @@ struct s_skill NewSkill(struct s_stat *parent, bool proficiency){
 }
 
 int RollSkillCheck(struct s_sheet *sheet, struct s_skill skill){
-    int result = (rand() % 20) + skill.bonus;
+    int result = (rand() % 20) + skill.bonus + 1;
 
     if (skill.proficient){
         result += sheet->proficiency;
