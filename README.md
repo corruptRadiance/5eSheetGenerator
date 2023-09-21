@@ -1,3 +1,5 @@
+Why does the checkmarks look like shit
+
 ## GOALS:
 - [x] Create structs for stats/bonuses
 - [x] Create a struct to represent a sheet
