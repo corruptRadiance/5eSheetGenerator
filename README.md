@@ -14,9 +14,9 @@
 - [x] Make UpdateAllSkills() not set every skill prociency to false
 - [x] Create function to display sheet values
 - [x] Create function to prompt the player for character info
-  
+- [x] Organize project into separate files
+
 - [ ] Fix PromptCharacterInfo() overflowing from the i/o stream
-- [ ] Organize project into separate files
 - [ ] Create function to check for invalid stats
 - [ ] Add invalid stat check function to every function that relies on a stat to return
 
@@ -32,7 +32,7 @@
 ### Systems to recreate:
 - [x] Character Info (including motivations)
 - [x] Stats with Manual Rolls (Roll 3 or 4d6, drop the lowest)
-- [x] Skills w/ proficiency
+- [ ] Skills w/ proficiency
 - [ ] Saving throws w/ proficiency
 - [ ] Hit Points/Dice
 
